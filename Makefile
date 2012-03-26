@@ -12,13 +12,14 @@ samples: objviewer benchmark
 
 voxl: src/*.c
 	cc -c $(CFLAGS) -o voxl.o src/voxl.c
-	cc -c $(CFLAGS) -o tribox.o src/tribox.c 
+	cc -c $(CFLAGS) -o tribox.o src/tribox.c
+	cc -c $(CFLAGS) -o polyconv.o src/polyconv.c 
 
 objviewer: voxl samples/objviewer.c
-	cc $(CFLAGS) -o objviewer voxl.o tribox.o samples/objviewer.c $(DRAWFLAGS)
+	cc $(CFLAGS) -o objviewer voxl.o tribox.o polyconv.o samples/objviewer.c $(DRAWFLAGS)
 
 benchmark: voxl samples/benchmark.c
-	cc $(CFLAGS) -o benchmark voxl.o tribox.o samples/benchmark.c $(DRAWFLAGS)
+	cc $(CFLAGS) -o benchmark voxl.o tribox.o polyconv.o samples/benchmark.c $(DRAWFLAGS)
 
 clean:
 	rm -f *.o objviewer benchmark

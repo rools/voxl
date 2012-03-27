@@ -1,9 +1,13 @@
 CFLAGS = -O3 -Wall -pedantic -Iinclude --std=c99
+LIBS = -lpng
+LINKFLAGS =
 
 ifeq ($(shell uname), Darwin)
-	DRAWFLAGS = -framework Cocoa -framework OpenGL -lglfw
+	DRAWLIBS = -framework Cocoa -framework OpenGL -lglfw
+	CFLAGS += -I/usr/X11/include/
+	LINKFLAGS += -L/usr/X11/lib/
 else
-	DRAWFLAGS = `pkg-config --cflags --libs libglfw` -lGLU
+	DRAWLIBS = `pkg-config --cflags --libs libglfw` -lGLU
 endif
 
 all: voxl samples
@@ -13,13 +17,13 @@ samples: objviewer benchmark
 voxl: src/*.c
 	cc -c $(CFLAGS) -o voxl.o src/voxl.c
 	cc -c $(CFLAGS) -o tribox.o src/tribox.c
-	cc -c $(CFLAGS) -o polyconv.o src/polyconv.c 
+	cc -c $(CFLAGS) -o polyconv.o src/polyconv.c
 
 objviewer: voxl samples/objviewer.c
-	cc $(CFLAGS) -o objviewer voxl.o tribox.o polyconv.o samples/objviewer.c $(DRAWFLAGS)
+	cc $(CFLAGS) $(LINKFLAGS) -o objviewer voxl.o tribox.o polyconv.o samples/objviewer.c $(LIBS) $(DRAWLIBS)
 
 benchmark: voxl samples/benchmark.c
-	cc $(CFLAGS) -o benchmark voxl.o tribox.o polyconv.o samples/benchmark.c $(DRAWFLAGS)
+	cc $(CFLAGS) $(LINKFLAGS) -o benchmark voxl.o tribox.o polyconv.o samples/benchmark.c $(LIBS) $(DRAWLIBS)
 
 clean:
 	rm -f *.o objviewer benchmark

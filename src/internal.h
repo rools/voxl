@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <png.h>
+
 #include "voxl.h"
 
 // An octree node.
@@ -34,6 +36,14 @@ struct vx_render_context {
 	int current_row;
 };
 
+struct vx_image {
+	int width;
+	int height;
+
+	// 8 bit per channel RGBA pixel information.
+	unsigned char *data;
+};
+
 // Return the largest/smallest argument.
 float vx_max(float a, float b, float c);
 float vx_min(float a, float b, float c);
@@ -52,5 +62,8 @@ struct vx_voxel *vx_get_octree_voxel(struct vx_octree *octree, float x, float y,
 
 // Get the parent of the node or voxel that is or would have been at the specified position.
 void vx_get_parent(struct vx_octree *octree, struct vx_node **parent, int *index, float x, float y, float z, int detail);
+
+// Load an image. Only supports PNG RGBA images with a bit depth of 8 at the moment.
+vx_error vx_load_image(char *file_name, struct vx_image *image);
 
 #endif

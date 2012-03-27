@@ -19,13 +19,15 @@
  * Error codes
  */
 typedef enum vx_error {
-	VX_ERROR_OK						= 0, // No error
-	VX_ERROR_INVALID_DETAIL_LEVEL	= 1, // Unvalid detail level specifier
-	VX_ERROR_TEXTURE_NOT_FOUND		= 2, // Referenced texture not found
-	VX_ERROR_INVALID_OCTREE			= 3, // The octree was invalid
-	VX_ERROR_CANT_OPEN_FILE			= 4, // The specified file can't be opened
-	VX_ERROR_POLYGON_FILE_ERROR		= 5, // The polygon file isn't valid
-	VX_ERROR_INVALID_MODEL			= 6  // The specified model is invalid
+	VX_ERROR_OK                      = 0, // No error
+	VX_ERROR_INVALID_DETAIL_LEVEL    = 1, // Unvalid detail level specifier
+	VX_ERROR_TEXTURE_NOT_FOUND       = 2, // Referenced texture not found
+	VX_ERROR_INVALID_OCTREE          = 3, // The octree was invalid
+	VX_ERROR_CANT_OPEN_FILE          = 4, // The specified file can't be opened
+	VX_ERROR_POLYGON_FILE_ERROR      = 5, // The polygon file isn't valid
+	VX_ERROR_INVALID_MODEL           = 6, // The specified model is invalid
+	VX_ERROR_INVALID_IMAGE           = 7, // The specified image is invalid
+	VX_ERROR_UNSUPPORTED_IMAGE       = 8  // The specified image is unsupported
 } vx_error;
 
 /**

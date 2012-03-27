@@ -6,6 +6,59 @@
 #include "voxl.h"
 #include "tribox.h"
 
+#include <png.h>
+
+vx_error vx_load_image(char *file_name, struct vx_image *image) {
+	png_byte header[8];
+	png_structp png_ptr;
+	png_infop info_ptr;
+
+	// Open file and check if it is a PNG file.
+	FILE *fp = fopen(file_name, "rb");
+	if (!fp)
+		return VX_ERROR_CANT_OPEN_FILE;
+	if (fread(header, 1, 8, fp) != 8)
+		return VX_ERROR_INVALID_IMAGE;
+	if (png_sig_cmp(header, 0, 8))
+		return VX_ERROR_UNSUPPORTED_IMAGE;
+
+	// Initialize PNG structures.
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr)
+		return VX_ERROR_INVALID_IMAGE;
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr)
+		return VX_ERROR_INVALID_IMAGE;
+	if (setjmp(png_jmpbuf(png_ptr)))
+		return VX_ERROR_INVALID_IMAGE;
+	png_init_io(png_ptr, fp);
+	png_set_sig_bytes(png_ptr, 8);
+	png_read_info(png_ptr, info_ptr);
+
+	// Only accept RGBA images with bit depth of 8 for simplicity.
+	if (png_get_color_type(png_ptr, info_ptr) != PNG_COLOR_TYPE_RGB_ALPHA || png_get_bit_depth(png_ptr, info_ptr) != 8)
+		return VX_ERROR_INVALID_IMAGE;
+
+	image->width = png_get_image_width(png_ptr, info_ptr);
+	image->height = png_get_image_height(png_ptr, info_ptr);
+
+	if (setjmp(png_jmpbuf(png_ptr)))
+		return VX_ERROR_INVALID_IMAGE;
+
+	// Read the image data.
+	unsigned char **row_pointers = (unsigned char **)malloc(sizeof(png_bytep) * image->height);
+	image->data = malloc(png_get_rowbytes(png_ptr, info_ptr) * image->height);
+	for (int y = 0; y < image->height; y++)
+		row_pointers[y] = image->data + y * png_get_rowbytes(png_ptr, info_ptr);
+	png_read_image(png_ptr, (png_bytepp)row_pointers);
+
+	free(row_pointers);
+
+	fclose(fp);
+
+	return VX_ERROR_OK;
+}
+
 struct vx_voxel *vx_get_octree_voxel(struct vx_octree *octree, float x, float y, float z, int detail) {
 	uint32_t node = 0;
 

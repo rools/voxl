@@ -2,7 +2,7 @@
 #include <math.h>
 #include <string.h>
 #include <sys/time.h>
-#include <GL/glfw.h>
+#include <GLFW/glfw3.h>
 #include <limits.h>
 
 #include "voxl.h"
@@ -14,7 +14,7 @@ const float MOVEMENT_SPEED = 0.01f;
 
 const int FRAME_COUNT = 100;
 
-double benchmark(struct vx_octree *octree, int draw);
+double benchmark(GLFWwindow *window, struct vx_octree *octree, int draw);
 
 void print_help(FILE *stream, const char *name) {
 	fprintf(stream, "usage: %s [--draw] obj_file\n", name);
@@ -26,8 +26,12 @@ double get_time() {
 	return t.tv_sec + 1.0e-6 * t.tv_usec;
 }
 
+void glfw_error_callback(int error, const char *description) {
+	fputs(description, stderr);
+}
+
 // A simple benchmark routine to make quick performance tests.
-double benchmark(struct vx_octree *octree, int draw) {
+double benchmark(GLFWwindow *window, struct vx_octree *octree, int draw) {
 	char *buffer = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t));
 	struct vx_camera camera;
 	double start_time, end_time;
@@ -76,16 +80,17 @@ double benchmark(struct vx_octree *octree, int draw) {
 			glColor3f(1, 1, 1);
 			glBegin(GL_QUADS);
 			glTexCoord2f(0.0, 0.0);
-			glVertex2f(0, 0);
+			glVertex2f(-1, -1);
 			glTexCoord2f(0.0, 1.0);
-			glVertex2f(0, 1);
+			glVertex2f(-1, 1);
 			glTexCoord2f(1.0, 1.0);
 			glVertex2f(1, 1);
 			glTexCoord2f(1.0, 0.0);
-			glVertex2f(1, 0);
+			glVertex2f(1, -1);
 			glEnd();
 
-			glfwSwapBuffers();
+			glfwSwapBuffers(window);
+			glfwPollEvents();
 		}
 	}
 
@@ -130,24 +135,33 @@ int main (int argc, const char * argv[]) {
 		}
 	}
 
+	GLFWwindow *window = NULL;
+
 	if (draw) {
+		glfwSetErrorCallback(glfw_error_callback);
+
 		if (!glfwInit()) {
 			fprintf(stderr, "Could not initialize GLFW\n");
 			exit(1);
 		}
-		
-		if (!glfwOpenWindow(WINDOW_WIDTH, WINDOW_HEIGHT, 8, 8, 8, 8, 24, 0, GLFW_WINDOW)) {
+
+		window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "voxl benchmark", NULL, NULL);
+		if (!window) {
 			fprintf(stderr, "Could not open GLFW window\n");
 			glfwTerminate();
 			exit(1);
 		}
 
-		glfwSetWindowTitle("voxl benchmark");
+		glfwMakeContextCurrent(window);
+
+		int framebuffer_width, framebuffer_height;
+		glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+		glViewport(0, 0, framebuffer_width, framebuffer_height);
 
 		glEnable(GL_TEXTURE_2D);
 
 		glMatrixMode(GL_PROJECTION);
-		gluOrtho2D(0, 1, 0, 1);
+		glOrtho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
 		glMatrixMode(GL_MODELVIEW);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -157,11 +171,14 @@ int main (int argc, const char * argv[]) {
 	}
 
 	{
-		double time = benchmark(&octree, draw);
+		double time = benchmark(window, &octree, draw);
 		printf("benchmark time: %f s (%f fps)\n", time, FRAME_COUNT / time);
 	}
 
-	glfwTerminate();
+	if (draw) {
+		glfwDestroyWindow(window);
+		glfwTerminate();
+	}
 
 	return 0;
 }

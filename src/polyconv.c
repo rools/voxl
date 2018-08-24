@@ -136,7 +136,8 @@ vx_error vx_poly_to_octree(const char *file_name, struct vx_octree *octree, int 
 
 		while (!feof(file)) {
 			char line[1024];
-			fgets(line, 1024, file);
+			if (!fgets(line, 1024, file) && ferror(file))
+				return VX_ERROR_CANT_OPEN_FILE;
 
 			if (!strncmp(line, "v ", 2)) {
 				float x, y, z;
@@ -184,7 +185,8 @@ vx_error vx_poly_to_octree(const char *file_name, struct vx_octree *octree, int 
 	// Load the actual vertices, texture normals and faces from file.
 	while (!feof(file)) {
 		char line[1024];
-		fgets(line, 1024, file);
+		if (!fgets(line, 1024, file) && ferror(file))
+			return VX_ERROR_CANT_OPEN_FILE;
 
 		if (!strncmp(line, "v ", 2)) {
 			float *vertex = (float *)malloc(3 * sizeof(float));

@@ -4,10 +4,8 @@ LINKFLAGS =
 
 ifeq ($(shell uname), Darwin)
 	DRAWLIBS = -framework Cocoa -framework OpenGL -lglfw
-	CFLAGS += -I/usr/X11/include/
-	LINKFLAGS += -L/usr/X11/lib/
 else
-	DRAWLIBS = `pkg-config --cflags --libs libglfw` -lGLU
+	DRAWLIBS = `pkg-config --libs glfw3 gl` -lm -lpthread
 endif
 
 all: voxl samples

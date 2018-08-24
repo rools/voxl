@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <GL/glfw.h>
+#include <GLFW/glfw3.h>
 #include <limits.h>
 
 #include "voxl.h"
@@ -26,6 +26,10 @@ void print_help(FILE *stream, const char *name) {
 	fprintf(stream, "  --fov          camera field of view (default %.1f)\n", DEFAULT_FOV);
 	fprintf(stream, "  --formation    line, plane, pyramid\n");
 	fprintf(stream, "  -h, --help     display this help and exit\n");
+}
+
+void glfw_error_callback(int error, const char *description) {
+	fputs(description, stderr);
 }
 
 int main (int argc, const char * argv[]) {
@@ -169,23 +173,30 @@ int main (int argc, const char * argv[]) {
 		vx_place_model(&octree, model, 0.5f, 0.5f, 0.5f, FORMATION_SIZE);
 	}
 
+	glfwSetErrorCallback(glfw_error_callback);
+
 	if (!glfwInit()) {
 		fprintf(stderr, "Could not initialize GLFW\n");
 		exit(1);
 	}
 
-	if (!glfwOpenWindow(window_width, window_height, 8, 8, 8, 8, 24, 0, GLFW_WINDOW)) {
+	GLFWwindow *window = glfwCreateWindow(window_width, window_height, "voxl obj viewer", NULL, NULL);
+	if (!window) {
 		fprintf(stderr, "Could not open GLFW window\n");
 		glfwTerminate();
 		exit(1);
 	}
 
-	glfwSetWindowTitle("voxl obj viewer");
+	glfwMakeContextCurrent(window);
+
+	int framebuffer_width, framebuffer_height;
+	glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+	glViewport(0, 0, framebuffer_width, framebuffer_height);
 
 	glEnable(GL_TEXTURE_2D);
 
 	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0, 1, 0, 1);
+	glOrtho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
 	glMatrixMode(GL_MODELVIEW);
 
 	GLuint texture;
@@ -215,16 +226,17 @@ int main (int argc, const char * argv[]) {
 		glColor3f(1, 1, 1);
 		glBegin(GL_QUADS);
 		glTexCoord2f(0.0, 0.0);
-		glVertex2f(0, 0);
+		glVertex2f(-1, -1);
 		glTexCoord2f(0.0, 1.0);
-		glVertex2f(0, 1);
+		glVertex2f(-1, 1);
 		glTexCoord2f(1.0, 1.0);
 		glVertex2f(1, 1);
 		glTexCoord2f(1.0, 0.0);
-		glVertex2f(1, 0);
+		glVertex2f(1, -1);
 		glEnd();
 
-		glfwSwapBuffers();
+		glfwSwapBuffers(window);
+		glfwPollEvents();
 
 		double time = glfwGetTime();
 		float dtime = time - lastTime;
@@ -236,20 +248,20 @@ int main (int argc, const char * argv[]) {
 		totFramerate += framerate;
 		++frameCount;
 
-		running = !glfwGetKey(GLFW_KEY_ESC) && glfwGetWindowParam(GLFW_OPENED);
+		running = !glfwGetKey(window, GLFW_KEY_ESCAPE) && !glfwWindowShouldClose(window);
 
-		if (glfwGetKey('W')) {
+		if (glfwGetKey(window, 'W')) {
 			camera.position[0] += dtime * MOVEMENT_SPEED * sinf(camera.rotation );
 			camera.position[2] += dtime * MOVEMENT_SPEED * cosf(camera.rotation );	
-		} else if (glfwGetKey('S')) {
+		} else if (glfwGetKey(window, 'S')) {
 			camera.position[0] -= dtime * MOVEMENT_SPEED * sinf(camera.rotation );
 			camera.position[2] -= dtime * MOVEMENT_SPEED * cosf(camera.rotation );
 		}
 
-		if (glfwGetKey('A')) {
+		if (glfwGetKey(window, 'A')) {
 			camera.position[0] -= dtime * MOVEMENT_SPEED * sinf(camera.rotation  + M_PI_2);
 			camera.position[2] -= dtime * MOVEMENT_SPEED * cosf(camera.rotation  + M_PI_2);
-		} else if (glfwGetKey('D')) {
+		} else if (glfwGetKey(window, 'D')) {
 			camera.position[0] += dtime * MOVEMENT_SPEED * sinf(camera.rotation  + M_PI_2);
 			camera.position[2] += dtime * MOVEMENT_SPEED * cosf(camera.rotation  + M_PI_2);
 		}
@@ -264,9 +276,9 @@ int main (int argc, const char * argv[]) {
 		else if (camera.position[2] > 1.0f)
 			camera.position[2] = 1.0f;
 
-		if (glfwGetKey(GLFW_KEY_SPACE)) {
+		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
 			camera.position[1] += dtime * MOVEMENT_SPEED;
-		} else if (glfwGetKey(GLFW_KEY_LCTRL)) {
+		} else if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) {
 			camera.position[1] -= dtime * MOVEMENT_SPEED;
 		}
 
@@ -275,14 +287,15 @@ int main (int argc, const char * argv[]) {
 		else if (camera.position[1] > 1.0f)
 			camera.position[1] = 1.0f;
 
-		int mouse_x, mouse_y;
-		glfwGetMousePos(&mouse_x, &mouse_y);
+		double mouse_x, mouse_y;
+		glfwGetCursorPos(window, &mouse_x, &mouse_y);
 
 		camera.rotation  = mouse_x / 90.0f;
 	}
 
 	printf("avgerage framerate: %f\n", totFramerate / frameCount);
 
+	glfwDestroyWindow(window);
 	glfwTerminate();
 
 	return 0;

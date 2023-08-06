@@ -1,0 +1,7 @@
+[requires]
+glfw/3.3.8
+libpng/1.6.40
+
+[generators]
+CMakeDeps
+CMakeToolchain

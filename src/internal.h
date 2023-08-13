@@ -1,7 +1,7 @@
 #ifndef VOXL_INTERNAL_H
 #define VOXL_INTERNAL_H
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "voxl.h"
 

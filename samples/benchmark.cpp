@@ -1,9 +1,9 @@
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
+#include <cstdio>
+#include <cmath>
+#include <cstring>
 #include <sys/time.h>
 #include <GLFW/glfw3.h>
-#include <limits.h>
+#include <climits>
 
 #include "voxl.h"
 
@@ -32,7 +32,7 @@ void glfw_error_callback(int error, const char *description) {
 
 // A simple benchmark routine to make quick performance tests.
 double benchmark(GLFWwindow *window, struct vx_octree *octree, int draw) {
-	char *buffer = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t));
+	char *buffer = (char *) malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uint32_t));
 	struct vx_camera camera;
 	double start_time, end_time;
 	GLuint texture;

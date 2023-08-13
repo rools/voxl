@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
+#include <cstdio>
+#include <cmath>
+#include <cstring>
 #include <GLFW/glfw3.h>
-#include <limits.h>
+#include <climits>
 
 #include "voxl.h"
 
@@ -200,7 +200,7 @@ int main (int argc, const char * argv[]) {
 	glMatrixMode(GL_MODELVIEW);
 
 	GLuint texture;
-	char *buffer = malloc(window_width * window_height * sizeof(uint32_t));
+	char *buffer = (char *) malloc(window_width * window_height * sizeof(uint32_t));
 
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);

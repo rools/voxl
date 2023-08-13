@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES
 
-#include <string.h>
-#include <math.h>
+#include <cstring>
+#include <cmath>
 #include <pthread.h>
 
 #include "internal.h"
@@ -23,7 +23,7 @@ float vx_min(float a, float b, float c) {
 
 void vx_init_octree(struct vx_octree *octree) {
 	octree->allocated_size = 128;
-	octree->root = malloc(octree->allocated_size * sizeof(struct vx_node));
+	octree->root = (vx_node *) malloc(octree->allocated_size * sizeof(struct vx_node));
 	octree->size = 1;
 	octree->model_count = 0;
 	octree->root->leaf_mask = 0;
@@ -211,7 +211,7 @@ uint32_t vx_append_to_octree(struct vx_octree *octree, void *data, int size) {
 		uint32_t new_allocated_size = octree->size + size;
 		if (2 * octree->allocated_size > new_allocated_size)
 			new_allocated_size = 2 * octree->allocated_size;
-		octree->root = realloc(octree->root, new_allocated_size * sizeof(struct vx_node));
+		octree->root = (vx_node *) realloc(octree->root, new_allocated_size * sizeof(struct vx_node));
 		octree->allocated_size = new_allocated_size;
 	}
 

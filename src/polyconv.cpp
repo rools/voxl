@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
+#include <cstdio>
+#include <cstring>
+#include <cfloat>
 
 #include "internal.h"
 #include "voxl.h"
@@ -47,7 +47,7 @@ vx_error vx_load_image(char *file_name, struct vx_image *image) {
 
 	// Read the image data.
 	unsigned char **row_pointers = (unsigned char **)malloc(sizeof(png_bytep) * image->height);
-	image->data = malloc(png_get_rowbytes(png_ptr, info_ptr) * image->height);
+	image->data = (unsigned char *) malloc(png_get_rowbytes(png_ptr, info_ptr) * image->height);
 	for (int y = 0; y < image->height; y++)
 		row_pointers[y] = image->data + y * png_get_rowbytes(png_ptr, info_ptr);
 	png_read_image(png_ptr, (png_bytepp)row_pointers);

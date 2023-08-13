@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include <png.h>
-
 #include "voxl.h"
 
 // An octree node.

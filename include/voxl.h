@@ -1,8 +1,8 @@
 #ifndef VOXL_H
 #define VOXL_H
 
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdint>
 #include <xmmintrin.h>
 
 #define MODEL_LIMIT 16

@@ -3,6 +3,7 @@
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <climits>
+#include <cstdlib>
 
 #include "voxl.h"
 

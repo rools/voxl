@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <GLFW/glfw3.h>
 #include <climits>
+#include <cstdlib>
 
 #include "voxl.h"
 

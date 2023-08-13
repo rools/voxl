@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cfloat>
+#include <cstdlib>
 
 #include "internal.h"
 #include "voxl.h"

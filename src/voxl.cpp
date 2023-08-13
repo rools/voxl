@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include <pthread.h>
+#include <cstdlib>
 
 #include "internal.h"
 #include "voxl.h"

@@ -48,9 +48,6 @@ float vx_max(float a, float b, float c);
 // Return the smallest argument.
 float vx_min(float a, float b, float c);
 
-// Cast a ray and return its corresponding color as a 32-bit RGBA value.
-uint32_t vx_ray_cast(struct vx_octree *octree, __m128 ray_origin, __m128 ray_direction);
-
 // Render the row in the context. This function is thread safe.
 void *vx_render_row(void *render_context);
 

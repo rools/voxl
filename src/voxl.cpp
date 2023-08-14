@@ -5,8 +5,16 @@
 #include <pthread.h>
 #include <cstdlib>
 
+#include <hwy/highway.h>
+
 #include "internal.h"
 #include "voxl.h"
+
+HWY_BEFORE_NAMESPACE();
+
+hwy::HWY_NAMESPACE::ScalableTag<float> df;
+using VecF = hwy::HWY_NAMESPACE::Vec<decltype(df)>;
+using MaskF = hwy::HWY_NAMESPACE::Mask<decltype(df)>;
 
 // How many threads to use when rendering a frame.
 const int RENDERING_THREADS = 8;
@@ -31,32 +39,31 @@ void vx_init_octree(struct vx_octree *octree) {
     octree->root->valid_masks = 0;
 }
 
-uint32_t vx_ray_cast(struct vx_octree *octree, __m128 ray_origin, __m128 ray_direction) {
-    __m128 box = _mm_set_ps1(0.0f);
-    __m128 ray_sign = _mm_cmpnlt_ps(ray_direction, _mm_setzero_ps());
-    __m128 half_size = _mm_set_ps1(0.5f);
-    __m128 moctant = _mm_cmpnle_ps(ray_origin, _mm_add_ps(box, half_size));
+uint32_t vx_ray_cast(struct vx_octree *octree, VecF ray_origin, VecF ray_direction) {
+    VecF box = Zero(df);
+    MaskF ray_sign = ray_direction >= Zero(df);
+    VecF half_size = Set(df, 0.5f);
+    MaskF moctant = ray_origin > (box + half_size);
 
     // The potential X, Y and Z-planes that the ray will collide with next.
-    __m128 planes = _mm_add_ps(_mm_add_ps(_mm_and_ps(moctant, half_size), _mm_and_ps(ray_sign, half_size)), box);
+    VecF planes = IfThenElseZero(moctant, half_size) + IfThenElseZero(ray_sign, half_size) + box;
 
     // Stacks to keep track of nodes during traversal of the octree.
     struct vx_node *node_stack[MAX_DETAIL_LEVEL];
-    int octant_stack[MAX_DETAIL_LEVEL];
+    uint64_t octant_stack[MAX_DETAIL_LEVEL];
     int stack_pos = 0;
 
     node_stack[0] = octree->root;
 
     // What octant are we in?
-    octant_stack[0] = _mm_movemask_ps(moctant);
+    StoreMaskBits(df, moctant, (uint8_t *) octant_stack);
 
-    __m128 mask[3];
+    MaskF mask[3];
     {
-        unsigned int max = 0xFFFFFFFF;
-        __m128 mmax = _mm_load_ss((float *) &max);
-        mask[0] = _mm_shuffle_ps(mmax, mmax, _MM_SHUFFLE(3, 3, 3, 0));
-        mask[1] = _mm_shuffle_ps(mmax, mmax, _MM_SHUFFLE(3, 3, 0, 3));
-        mask[2] = _mm_shuffle_ps(mmax, mmax, _MM_SHUFFLE(3, 0, 3, 3));
+        uint64_t tmp;
+        mask[0] = LoadMaskBits(df, (uint8_t *) &(tmp = 1));
+        mask[1] = LoadMaskBits(df, (uint8_t *) &(tmp = 2));
+        mask[2] = LoadMaskBits(df, (uint8_t *) &(tmp = 4));
     }
 
     while (stack_pos >= 0) {
@@ -82,29 +89,31 @@ uint32_t vx_ray_cast(struct vx_octree *octree, __m128 ray_origin, __m128 ray_dir
             // This was a node, push it to the stack.
             node_stack[stack_pos + 1] = &octree->root[node_stack[stack_pos]->child_pointers[octant_stack[stack_pos]]];
 
-            box = _mm_add_ps(box, _mm_and_ps(moctant, half_size));
+            box = box + IfThenElseZero(moctant, half_size);
 
-            half_size = _mm_mul_ps(half_size, _mm_set_ps1(0.5f));
+            half_size = half_size * Set(df, 0.5f);
 
             ++stack_pos;
 
-            moctant = _mm_cmpnle_ps(ray_origin, _mm_add_ps(box, half_size));
-            octant_stack[stack_pos] = _mm_movemask_ps(moctant);
+            moctant = ray_origin > box + half_size;
+            StoreMaskBits(df, moctant, (uint8_t *) &octant_stack[stack_pos]);
 
-            planes = _mm_add_ps(_mm_add_ps(_mm_and_ps(moctant, half_size), _mm_and_ps(ray_sign, half_size)), box);
+            planes = IfThenElseZero(moctant, half_size) + IfThenElseZero(ray_sign, half_size) + box;
 
             continue;
         }
 
         // Calculate intersection t values.
         float t[4];
-        _mm_store_ps(t, _mm_div_ps(_mm_sub_ps(planes, ray_origin), ray_direction));
+        Store((planes - ray_origin) / ray_direction, df, t);
 
         // What plane will the ray intersect with first?
         const int intersection_plane = t[0] < t[1] ? (t[0] < t[2] ? 0 : 2) : (t[1] < t[2] ? 1 : 2);
-        int dir_sign = (_mm_movemask_ps(ray_sign) >> intersection_plane) & 1;
+        uint64_t dir_sign = 0;
+        StoreMaskBits(df, ray_sign, (uint8_t *) &dir_sign);
+        dir_sign = (dir_sign >> intersection_plane) & 1;
 
-        ray_origin = _mm_add_ps(ray_origin, _mm_mul_ps(_mm_set_ps1(t[intersection_plane]), ray_direction));
+        ray_origin = ray_origin + Set(df, t[intersection_plane]) * ray_direction;
 
         // Check if the ray left the node.
         if ((octant_stack[stack_pos] & (1 << intersection_plane)) >> intersection_plane == dir_sign) {
@@ -112,26 +121,20 @@ uint32_t vx_ray_cast(struct vx_octree *octree, __m128 ray_origin, __m128 ray_dir
             do {
                 --stack_pos;
 
-                half_size = _mm_mul_ps(half_size, _mm_set_ps1(2.0f));
+                half_size = half_size * Set(df, 2.0f);
 
-                unsigned int nm[4] = {octant_stack[stack_pos] & 1 ? 0xFFFFFFFF : 0,
-                                      octant_stack[stack_pos] & 2 ? 0xFFFFFFFF : 0,
-                                      octant_stack[stack_pos] & 4 ? 0xFFFFFFFF : 0, 0};
-                moctant = _mm_load_ps((float *) nm);
+                moctant = LoadMaskBits(df, (uint8_t *) &octant_stack[stack_pos]);
 
-                box = _mm_sub_ps(box, _mm_and_ps(moctant, half_size));
+                box = box - IfThenElseZero(moctant, half_size);
             } while (stack_pos >= 0 && (((octant_stack[stack_pos] >> intersection_plane) & 1) == dir_sign));
 
             // Update octant.
             octant_stack[stack_pos] &= ~(1 << intersection_plane);
             octant_stack[stack_pos] |= dir_sign << intersection_plane;
 
-            unsigned int nm[4] = {octant_stack[stack_pos] & 1 ? 0xFFFFFFFF : 0,
-                                  octant_stack[stack_pos] & 2 ? 0xFFFFFFFF : 0,
-                                  octant_stack[stack_pos] & 4 ? 0xFFFFFFFF : 0, 0};
-            moctant = _mm_load_ps((float *) nm);
+            moctant = LoadMaskBits(df, (uint8_t *) &octant_stack[stack_pos]);
 
-            planes = _mm_add_ps(_mm_add_ps(_mm_and_ps(moctant, half_size), _mm_and_ps(ray_sign, half_size)), box);
+            planes = IfThenElseZero(moctant, half_size) + IfThenElseZero(ray_sign, half_size) + box;
 
             continue;
         }
@@ -140,14 +143,11 @@ uint32_t vx_ray_cast(struct vx_octree *octree, __m128 ray_origin, __m128 ray_dir
         octant_stack[stack_pos] &= ~(1 << intersection_plane);
         octant_stack[stack_pos] |= dir_sign << intersection_plane;
 
-        unsigned int nm[4] = {octant_stack[stack_pos] & 1 ? 0xFFFFFFFF : 0,
-                              octant_stack[stack_pos] & 2 ? 0xFFFFFFFF : 0,
-                              octant_stack[stack_pos] & 4 ? 0xFFFFFFFF : 0, 0};
-        moctant = _mm_load_ps((float *) nm);
+        moctant = LoadMaskBits(df, (uint8_t *) &octant_stack[stack_pos]);
 
         // Move the plane that the ray hit.
-        planes = dir_sign ? _mm_add_ps(planes, _mm_and_ps(mask[intersection_plane], half_size))
-                          : _mm_sub_ps(planes, _mm_and_ps(mask[intersection_plane], half_size));
+        planes = dir_sign ? planes + IfThenElseZero(mask[intersection_plane], half_size)
+                          : planes - IfThenElseZero(mask[intersection_plane], half_size);
     }
 
     // The ray didn't hit any voxel.
@@ -210,7 +210,7 @@ void *vx_render_row(void *render_context) {
                                    (-rv[1] * rx + rv[0] * ry) * sina;
             }
 
-            uint32_t color = vx_ray_cast(rc->octree, _mm_load_ps(ray_origin), _mm_load_ps(ray_direction));
+            uint32_t color = vx_ray_cast(rc->octree, Load(df, ray_origin), Load(df, ray_direction));
 
             rc->buffer[y * rc->camera->resolution[0] + x] = color;
         }
@@ -317,3 +317,5 @@ vx_error vx_place_model(struct vx_octree *octree, int model, float x, float y, f
 
     return VX_ERROR_OK;
 }
+
+HWY_AFTER_NAMESPACE();

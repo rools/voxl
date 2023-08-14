@@ -1,6 +1,7 @@
 [requires]
 glfw/3.3.8
 libpng/1.6.40
+highway/1.0.5
 
 [generators]
 CMakeDeps

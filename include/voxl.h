@@ -3,7 +3,6 @@
 
 #include <cstdio>
 #include <cstdint>
-#include <xmmintrin.h>
 
 #define MODEL_LIMIT 16
 
